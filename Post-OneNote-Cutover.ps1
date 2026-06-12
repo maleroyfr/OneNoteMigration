@@ -213,6 +213,17 @@ function Quarantine-Path {
         $copyOk = Invoke-RobocopyBackup -Source $Source -Destination $Destination -Label $Label
         if ($copyOk) {
             Write-Log "$Label copied to quarantine because move failed." -Severity WARNING
+            if (Test-Path $Source) {
+                try {
+                    $retainedPath = Get-UniquePath -Path (Join-Path $QuarantinePath ("{0}-OriginalRetained" -f $Label))
+                    Move-Item -Path $Source -Destination $retainedPath -ErrorAction Stop
+                    Write-Log "Relocated original $Label source after copy to: $retainedPath"
+                    return $true
+                } catch {
+                    Write-Log "Original $Label source is still active at '$Source'. OneNote may still use old state. Manual intervention required." -Severity ERROR
+                    return $false
+                }
+            }
         }
         return $copyOk
     }
