@@ -218,6 +218,25 @@ function Quarantine-Path {
     }
 }
 
+function Ensure-EmptyCacheRoot {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Label
+    )
+    if ($WhatIf) {
+        Write-Log "[WhatIf] Would ensure empty cache root for $Label at '$Path'" -Severity WARNING
+        return $true
+    }
+    try {
+        Ensure-Directory -Path $Path
+        Write-Log "Ensured empty cache root for $Label at '$Path'"
+        return $true
+    } catch {
+        Write-Log "Failed to ensure empty cache root for $Label at '$Path': $_" -Severity ERROR
+        return $false
+    }
+}
+
 function Open-TargetUrl {
     param([Parameter(Mandatory)][string]$TargetUrl)
 
@@ -301,6 +320,10 @@ if (Test-Path $desktopSource) {
     $desktopQuarantineOk = Quarantine-Path -Source $desktopSource -Destination $desktopQuarantineDest -Label "DesktopOneNote-16.0"
 }
 
+if ($desktopQuarantineOk -or -not $desktopCacheFound) {
+    $null = Ensure-EmptyCacheRoot -Path $desktopSource -Label "DesktopOneNote-16.0"
+}
+
 if ($IncludeStoreAppCache) {
     $storeSource = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.Office.OneNote_8wekyb3d8bbwe\LocalCache"
     $storeBackupDest = Join-Path $PostMigrationPath "EmergencyBackup\StoreApp-LocalCache"
@@ -311,6 +334,10 @@ if ($IncludeStoreAppCache) {
         $storeQuarantineOk = Quarantine-Path -Source $storeSource -Destination $storeQuarantineDest -Label "StoreApp-LocalCache"
     } else {
         Write-Log "Store app cache not found." -Severity WARNING
+    }
+
+    if ($storeQuarantineOk -or -not $storeCacheFound) {
+        $null = Ensure-EmptyCacheRoot -Path $storeSource -Label "StoreApp-LocalCache"
     }
 }
 
