@@ -1,15 +1,15 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Intune Proactive Remediation — DETECTION script.
+    Intune Proactive Remediation - DETECTION script.
     Triggers remediation when:
       - No backup has ever been completed, OR
       - The OneNote cache has been modified since the last backup
         AND the minimum backup interval has elapsed.
 
 EXIT CODES (Intune convention):
-    0  = Compliant   — backup is up to date, no action needed.
-    1  = Non-compliant — no backup, or cache changed since last backup.
+    0 = Compliant   - backup is up to date, no action needed.
+    1 = Non-compliant - no backup, or cache changed since last backup.
 
 RECOMMENDED INTUNE SCHEDULE: Every 1 hour.
 The $MinBackupIntervalHours guard prevents redundant re-backups.
@@ -78,7 +78,7 @@ if (-not $lastBackup) {
 $now             = Get-Date
 $hoursSinceBackup = ($now - $lastBackup.CompletedAt).TotalHours
 
-# Enforce minimum interval — avoid hammering if Intune runs frequently
+# Enforce minimum interval â€” avoid hammering if Intune runs frequently
 if ($hoursSinceBackup -lt $MinBackupIntervalHours) {
     Write-Host ("Compliant: last backup {0:F1}h ago (min interval {1}h). Too soon to re-check." -f $hoursSinceBackup, $MinBackupIntervalHours)
     exit 0
@@ -87,15 +87,15 @@ if ($hoursSinceBackup -lt $MinBackupIntervalHours) {
 $cacheModified = Get-CacheLastModified
 
 if (-not $cacheModified) {
-    Write-Host "Compliant: OneNote cache folder not found or empty — no changes to back up."
+    Write-Host "Compliant: OneNote cache folder not found or empty â€” no changes to back up."
     exit 0
 }
 
 if ($cacheModified -gt $lastBackup.CompletedAt) {
-    Write-Host ("Non-compliant: cache last modified {0} — newer than last backup {1}. Re-backup needed." -f $cacheModified, $lastBackup.CompletedAt)
+    Write-Host ("Non-compliant: cache last modified {0} â€” newer than last backup {1}. Re-backup needed." -f $cacheModified, $lastBackup.CompletedAt)
     exit 1
 }
 
-Write-Host ("Compliant: cache last modified {0} — no changes since last backup {1}." -f $cacheModified, $lastBackup.CompletedAt)
+Write-Host ("Compliant: cache last modified {0} â€” no changes since last backup {1}." -f $cacheModified, $lastBackup.CompletedAt)
 exit 0
 
