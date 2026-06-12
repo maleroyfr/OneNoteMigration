@@ -53,6 +53,8 @@ $SummaryFile = Join-Path $PostMigrationPath "PostSummary.json"
 $CompletedFile = Join-Path $PostMigrationPath "PostCompleted.json"
 $OpenedTargetsFile = Join-Path $PostMigrationPath "OpenedTargets.csv"
 $SkippedTargetsFile = Join-Path $PostMigrationPath "SkippedTargets.csv"
+$UserActionRequiredFile = Join-Path $PostMigrationPath "UserActionRequired.txt"
+$SourceNotebooksFile = Join-Path $PostMigrationPath "SourceNotebooks.csv"
 $EmergencyHierarchyFile = Join-Path $PostMigrationPath "EmergencyHierarchy.xml"
 $OpenedTargets = New-Object System.Collections.Generic.List[object]
 $SkippedTargets = New-Object System.Collections.Generic.List[object]
@@ -161,6 +163,14 @@ function Get-LatestPreCompleted {
         Select-Object -First 1
 }
 
+function Get-LatestPreInventoryCsv {
+    $inventoryRoot = Join-Path $OutputRoot "Inventory"
+    if (-not (Test-Path $inventoryRoot)) { return $null }
+    Get-ChildItem -Path $inventoryRoot -Filter "OneNote-Inventory.csv" -Recurse -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+}
+
 function Capture-EmergencyHierarchy {
     try {
         $app = New-Object -ComObject OneNote.Application
@@ -231,19 +241,6 @@ function Open-TargetUrl {
     }
 }
 
-function Export-ListToCsv {
-    param(
-        [Parameter(Mandatory)]$InputObject,
-        [Parameter(Mandatory)][string]$Path
-    )
-    if ($InputObject.Count -gt 0) {
-        $InputObject | Export-Csv -Path $Path -NoTypeInformation -Encoding UTF8
-    } else {
-        @() | Select-Object @{n='';e={}} | Out-Null
-        "" | Set-Content -Path $Path -Encoding UTF8
-    }
-}
-
 try {
     Ensure-Directory -Path $PostMigrationPath
     Ensure-Directory -Path $QuarantinePath
@@ -283,6 +280,11 @@ if ($latestPre) {
     Write-Log "No pre-migration completion marker found." -Severity WARNING
 }
 
+$latestInventory = Get-LatestPreInventoryCsv
+if ($latestInventory) {
+    Write-Log "Latest pre-migration inventory found: $($latestInventory.FullName)"
+}
+
 Stop-OneNoteProcesses
 
 if (Capture-EmergencyHierarchy) {
@@ -314,11 +316,27 @@ if ($IncludeStoreAppCache) {
 
 if ($OpenTargetNotebooks) {
     if (-not $MappingCsvPath) {
-        Write-Log "-OpenTargetNotebooks requires -MappingCsvPath." -Severity ERROR
-        $exitCode = 1
+        Write-Log "-OpenTargetNotebooks requested without -MappingCsvPath. Skipping notebook reopen." -Severity WARNING
+        if (-not $WhatIf) {
+            @(
+                "No mapping CSV was provided.",
+                "The old OneNote cache/config was quarantined successfully.",
+                "Support/user action required: reopen the needed notebooks from the target Teams or SharePoint location.",
+                ""
+                "If the target notebooks are already known, rerun this script with -MappingCsvPath to reopen them automatically."
+            ) | Set-Content -Path $UserActionRequiredFile -Encoding UTF8
+        }
     } elseif (-not (Test-Path $MappingCsvPath)) {
-        Write-Log "Mapping CSV not found: $MappingCsvPath" -Severity ERROR
-        $exitCode = 1
+        Write-Log "Mapping CSV not found: $MappingCsvPath. Skipping notebook reopen." -Severity WARNING
+        if (-not $WhatIf) {
+            @(
+                "The provided mapping CSV could not be found.",
+                "The old OneNote cache/config was quarantined successfully.",
+                "Support/user action required: reopen the needed notebooks from the target Teams or SharePoint location.",
+                ""
+                "Provide a validated mapping CSV and rerun if automatic reopening is required."
+            ) | Set-Content -Path $UserActionRequiredFile -Encoding UTF8
+        }
     } else {
         try {
             $mappingRows = Import-Csv -Path $MappingCsvPath
@@ -362,6 +380,17 @@ if ($OpenTargetNotebooks) {
             $exitCode = 1
         }
     }
+} elseif (-not $MappingCsvPath) {
+    Write-Log "No mapping CSV provided. Skipping notebook reopen by design." -Severity WARNING
+    if (-not $WhatIf) {
+        @(
+            "No mapping CSV was provided.",
+            "The old OneNote cache/config was quarantined successfully.",
+            "Support/user action required: reopen the needed notebooks from the target Teams or SharePoint location.",
+            ""
+            "If automatic reopening is needed later, rerun this script with a validated -MappingCsvPath."
+        ) | Set-Content -Path $UserActionRequiredFile -Encoding UTF8
+    }
 }
 
 try {
@@ -369,6 +398,26 @@ try {
     if ($SkippedTargets.Count -gt 0) { $SkippedTargets | Export-Csv -Path $SkippedTargetsFile -NoTypeInformation -Encoding UTF8 } else { "" | Set-Content -Path $SkippedTargetsFile -Encoding UTF8 }
 } catch {
     Write-Log "Failed to export target CSV files: $_" -Severity WARNING
+}
+
+if ($latestInventory -and (Test-Path $latestInventory.FullName)) {
+    try {
+        $inventoryRows = Import-Csv -Path $latestInventory.FullName
+        $sourceRows = $inventoryRows | Where-Object {
+            $_.IsSourceTenant -eq "True" -or $_.IsSourceTenant -eq $true
+        }
+        if ($sourceRows) {
+            $sourceRows | Export-Csv -Path $SourceNotebooksFile -NoTypeInformation -Encoding UTF8
+            Write-Log "Exported source notebook copy from latest inventory to $SourceNotebooksFile"
+        } else {
+            "" | Set-Content -Path $SourceNotebooksFile -Encoding UTF8
+            Write-Log "Latest inventory had no source-tenant rows to export." -Severity WARNING
+        }
+    } catch {
+        Write-Log "Failed to export source notebook copy from inventory: $_" -Severity WARNING
+    }
+} else {
+    Write-Log "No pre-migration inventory available to export source notebooks from." -Severity WARNING
 }
 
 $summary = [ordered]@{
