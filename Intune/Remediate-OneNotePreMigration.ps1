@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Intune Proactive Remediation — REMEDIATION script.
+    Intune Proactive Remediation - REMEDIATION script.
     Self-contained: no external script dependency required.
     Inventories opened OneNote notebooks and backs up local cache.
 
@@ -11,7 +11,7 @@ EXIT CODES (Intune convention):
 #>
 
 # ===========================================================================
-# CONFIGURATION — adjust before uploading to Intune
+# CONFIGURATION - adjust before uploading to Intune
 # ===========================================================================
 $SourceTenantHost     = "sesvanderhave.sharepoint.com"
 $OutputRoot           = "C:\ProgramData\GFD-MIG\OneNoteMigration"
@@ -229,7 +229,7 @@ function Invoke-RobocopyBackup {
 # MAIN
 # ===========================================================================
 
-Write-Log "===== $ScriptName v$ScriptVersion — Start ====="
+Write-Log "===== $ScriptName v$ScriptVersion - Start ====="
 Write-Log "User       : $UserDomain\$UserName $(if ($UserPrincipalName) { "($UserPrincipalName)" })"
 Write-Log "Computer   : $ComputerName"
 Write-Log "Timestamp  : $Timestamp"
@@ -374,5 +374,5 @@ try {
     Write-Log "PreCompleted marker saved: $PreCompletedFile"
 } catch { Write-Log "Failed to write PreCompleted JSON: $_" -Severity ERROR }
 
-Write-Log "===== $ScriptName — End (exit $exitCode) ====="
+Write-Log "===== $ScriptName - End (exit $exitCode) ====="
 exit $exitCode
