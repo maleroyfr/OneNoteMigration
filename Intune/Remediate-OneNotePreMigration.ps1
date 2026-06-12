@@ -39,17 +39,17 @@ try {
     $upnClaim = $CurrentUser.Claims |
                 Where-Object { $_.Type -eq "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn" } |
                 Select-Object -First 1
-    if ($upnClaim) { $UserPrincipalName = $upnClaim.Value }
+    if ($upnClaim) { $UserPrincipalName = $upnClaim.Value.Trim() }
 } catch { }
 if (-not $UserPrincipalName) {
     try {
         $adsiUser = [ADSI]"LDAP://<SID=$($CurrentUser.User.Value)>"
-        if ($adsiUser.userPrincipalName) { $UserPrincipalName = $adsiUser.userPrincipalName }
+        if ($adsiUser.userPrincipalName) { $UserPrincipalName = [string]$adsiUser.userPrincipalName.Trim() }
     } catch { }
 }
 
 $RunId = if ($UserPrincipalName) {
-    ($UserPrincipalName -replace '[\\/:*?"<>|@]', '_') + "_${ComputerName}_${Timestamp}"
+    ($UserPrincipalName.Trim() -replace '[\\/:*?"<>|@]', '_') + "_${ComputerName}_${Timestamp}"
 } else {
     "${UserDomain}_${UserName}_${ComputerName}_${Timestamp}"
 }
@@ -211,8 +211,18 @@ function Invoke-RobocopyBackup {
     Write-Log "Starting robocopy backup [$Label]: '$Source' -> '$Destination'"
     if (-not (Test-Path $Destination)) { New-Item -ItemType Directory -Path $Destination -Force | Out-Null }
     try {
+        $roboArgs = @(
+            ('"{0}"' -f $Source),
+            ('"{0}"' -f $Destination),
+            "/E",
+            "/R:1",
+            "/W:1",
+            "/XJ",
+            "/NP",
+            ('/LOG+:"{0}"' -f $LogFile)
+        )
         $proc = Start-Process -FilePath "robocopy.exe" `
-            -ArgumentList @($Source, $Destination, "/E", "/R:1", "/W:1", "/XJ", "/NP", "/LOG+:$LogFile") `
+            -ArgumentList $roboArgs `
             -Wait -PassThru -NoNewWindow
         $rc = $proc.ExitCode
         Write-Log "Robocopy [$Label] exit code: $rc"
