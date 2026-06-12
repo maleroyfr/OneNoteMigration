@@ -27,19 +27,8 @@ Intune Proactive Remediation
 
 ## Pre-requisite: deploy the main script
 
-`Pre-OneNote-InventoryBackup.ps1` must be present at:
-```
-C:\ProgramData\GFD-MIG\Scripts\Pre-OneNote-InventoryBackup.ps1
-```
-before the remediation script runs.
-
-**Recommended approach:** deploy it as an Intune Win32 app (`.intunewin`) with
-install command:
-```
-powershell.exe -ExecutionPolicy Bypass -File Pre-OneNote-InventoryBackup.ps1 --% -Noop
-```
-…or simply copy it via a separate Intune PowerShell script that runs once in
-SYSTEM context.
+**None.** `Remediate-OneNotePreMigration.ps1` is fully self-contained.
+Upload it directly to Intune alongside `Detect-OneNotePreMigration.ps1`.
 
 ## Intune Proactive Remediation settings
 
