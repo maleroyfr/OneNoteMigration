@@ -13,16 +13,13 @@
     Stop OneNote processes before backup.
 .PARAMETER IncludeStoreAppCache
     Also back up the Microsoft Store version of OneNote cache.
-.PARAMETER WhatIf
-    Show what would happen without performing process stops or cache copies.
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [string]$SourceTenantHost     = "sesvanderhave.sharepoint.com",
     [string]$OutputRoot           = "C:\ProgramData\GFD-MIG\OneNoteMigration",
     [switch]$StopOneNote,
-    [switch]$IncludeStoreAppCache,
-    [switch]$WhatIf
+    [switch]$IncludeStoreAppCache
 )
 
 Set-StrictMode -Version Latest
@@ -152,7 +149,7 @@ function Stop-OneNoteProcesses {
         }
         foreach ($proc in $procs) {
             Write-Log "Found process '$name' (PID $($proc.Id)). Attempting graceful close."
-            if ($WhatIf) {
+            if ($WhatIfPreference) {
                 Write-Log "[WhatIf] Would stop process '$name' (PID $($proc.Id))." -Severity WARNING
                 continue
             }
@@ -291,7 +288,7 @@ function Invoke-RobocopyBackup {
         return $false
     }
 
-    if ($WhatIf) {
+    if ($WhatIfPreference) {
         Write-Log "[WhatIf] Would robocopy '$Source' -> '$Destination'" -Severity WARNING
         return $false
     }
@@ -304,7 +301,16 @@ function Invoke-RobocopyBackup {
     }
 
     try {
-        $roboArgs = @($Source, $destDir, "/E", "/R:1", "/W:1", "/XJ", "/NP", "/LOG+:$LogFile")
+        $roboArgs = @(
+            ('"{0}"' -f $Source),
+            ('"{0}"' -f $destDir),
+            "/E",
+            "/R:1",
+            "/W:1",
+            "/XJ",
+            "/NP",
+            ('/LOG+:"{0}"' -f $LogFile)
+        )
         $proc = Start-Process -FilePath "robocopy.exe" -ArgumentList $roboArgs `
                               -Wait -PassThru -NoNewWindow
         $exitCode = $proc.ExitCode
@@ -333,7 +339,7 @@ Write-Log "Computer   : $ComputerName"
 Write-Log "Timestamp  : $Timestamp"
 Write-Log "OutputRoot : $OutputRoot"
 Write-Log "SourceHost : $SourceTenantHost"
-Write-Log "WhatIf     : $($WhatIf.IsPresent)"
+Write-Log "WhatIf     : $WhatIfPreference"
 Write-Log "StopOneNote: $($StopOneNote.IsPresent)"
 Write-Log "StoreCache : $($IncludeStoreAppCache.IsPresent)"
 
@@ -434,7 +440,7 @@ $cacheSucceeded = Invoke-RobocopyBackup -Source $cacheSource -Destination $cache
 if ($cacheSucceeded) {
     Write-Log "OneNote 16.0 cache backup succeeded."
 } else {
-    if (-not $WhatIf) {
+    if (-not $WhatIfPreference) {
         Write-Log "OneNote 16.0 cache backup failed or source not found." -Severity WARNING
     }
 }
@@ -454,7 +460,7 @@ if ($IncludeStoreAppCache.IsPresent) {
     if ($storeAppSucceeded) {
         Write-Log "Store app OneNote cache backup succeeded."
     } else {
-        if (-not $WhatIf) {
+        if (-not $WhatIfPreference) {
             Write-Log "Store app cache backup failed or source not found." -Severity WARNING
         }
     }
