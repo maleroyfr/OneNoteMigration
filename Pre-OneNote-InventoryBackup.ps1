@@ -5,7 +5,6 @@
 .DESCRIPTION
     Inventories opened OneNote notebooks via COM API and backs up local cache
     as a safety net before a Quest tenant-to-tenant migration.
-    Does NOT migrate content, export .onepkg files, or modify OneNote data.
 .PARAMETER SourceTenantHost
     Source tenant SharePoint host to detect in notebook/section paths.
 .PARAMETER OutputRoot

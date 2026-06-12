@@ -16,7 +16,7 @@ EXIT CODES (Intune convention):
 $SourceTenantHost     = "sesvanderhave.sharepoint.com"
 $OutputRoot           = "C:\ProgramData\GFD-MIG\OneNoteMigration"
 $ShouldStopOneNote    = $true   # Recommended: $true for migration prep
-$IncludeStoreAppCache = $false  # Set $true if Store version of OneNote is used
+$IncludeStoreAppCache = $true  # Set $true if Store version of OneNote is used
 # ===========================================================================
 
 Set-StrictMode -Version Latest
