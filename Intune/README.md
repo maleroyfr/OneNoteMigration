@@ -10,19 +10,24 @@
 ## How it works
 
 ```
-Intune Proactive Remediation
+Intune Proactive Remediation  (runs on schedule, e.g. every hour)
   │
   ├─ Detection runs in USER context
-  │     Looks for PreCompleted.json under
-  │     C:\ProgramData\GFD-MIG\OneNoteMigration\Inventory\
   │
-  │     Exit 0  → Compliant (already done, no further action)
-  │     Exit 1  → Non-compliant → Intune triggers Remediation
+  │   No backup ever done?
+  │     └─ Exit 1 → Non-compliant → trigger Remediation
   │
-  └─ Remediation runs in USER context
-        Calls Pre-OneNote-InventoryBackup.ps1
-        Exit 0  → Success → device marked Compliant
-        Exit 1  → Failure → Intune reports remediation failed
+  │   Last backup < MinBackupIntervalHours ago?
+  │     └─ Exit 0 → Compliant (too soon, skip)
+  │
+  │   OneNote cache modified AFTER last backup?
+  │     ├─ Yes → Exit 1 → Non-compliant → trigger Remediation
+  │     └─ No  → Exit 0 → Compliant (nothing changed)
+  │
+  └─ Remediation runs in USER context (only when Detection = 1)
+        Runs full inventory + cache backup
+        Exit 0 → device marked Compliant
+        Exit 1 → Intune reports remediation failed
 ```
 
 ## Pre-requisite: deploy the main script
@@ -40,7 +45,7 @@ Upload it directly to Intune alongside `Detect-OneNotePreMigration.ps1`.
 | **Run script in 64-bit PowerShell** | Yes |
 | **Run this script using the logged-on credentials** | Yes (user context) |
 | **Enforce script signature check** | Optional (sign if required by policy) |
-| **Schedule** | Daily, or Once |
+| **Schedule** | Every **1 hour** (detection is cheap; remediation only fires on change) |
 
 > ⚠️ **User context is mandatory.** The COM API (`OneNote.Application`) and
 > the user's OneNote cache (`%LOCALAPPDATA%`) are only accessible in the
